@@ -1,14 +1,138 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Multiple inheritance for Javascript</title>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.16/require.min.js"></script>
+        <title>extend multiple</title>
+
+        <style>
+        </style>
     </head>
+
     <body>
+        <h1>Extend Multiple demo</h1>
+
         <script>
-            require(['multiple.js'], function(multiple) {
-                console.log(multiple);
-            });
+            // TEST/DEBUG DATA 
+            'use strict';
+
+            // set up basic properties
+            function Mom() {
+                this.eyeColor = 'blue';
+                this.hairColor = 'brown';
+            }
+
+            Mom.prototype.feed = function(food) {
+                return 'Whatta delicious ' + food;
+            };
+
+            function Dad() {
+                this.hairColor = 'blonde';
+            }
+
+            Dad.prototype.ride = function(ride) {
+                return 'Riding dad\'s sexy ' + ride;
+            };
+
+            Dad.prototype.fly = function(ride) {
+                return 'Flying dad\'s sexy ' + ride;
+            };
+
+
+            function Child() {
+                // properties with the same name are overridden by subsequent calls
+                Mom.apply(this, arguments);
+                Dad.apply(this, arguments);
+            }
+
+            Child.prototype.ride = function(ride) {
+                console.log(this._super('car'));
+                return 'Riding sexy ' + ride;
+            };
+
+            Child.prototype.fly = function(ride) {
+                console.log(this._super('jet'));
+                return 'Flying my OWN sexy ' + ride;
+            };
+
+
+            /**
+             * Prototypal inheritance with support for multiple inheritance
+             *
+             * @author op1ekun@borntoco.de
+             * @param  {function} child [description]
+             *
+             * TODO
+             * document optional parent classes arguments (multiple)
+             * @return {object}       return child object that extends provided parent classes
+             */
+            function extend(child) {
+                function Temp() {}
+
+                // creates a closure for parent's prototype method
+                function extendPrototype(innerParent, innerPropName) {
+
+                    return function() { 
+                        // preserve changes to the prototype chain
+                        return innerParent.prototype[innerPropName].apply(innerParent, arguments);
+                    };
+                }
+
+                function superMethod(childMethod, parent, methodName) {
+
+                    return function() {
+                        // create a reference to super method during runtime
+                        this._super = parent.prototype[methodName];
+                        // run the child method to get the results
+                        // the child method has access to super method now
+                        var result = childMethod.apply(this, arguments);
+                        // delete super method from the child's instance
+                        // so it doesn't hang around in the object
+                        delete this._super;
+
+                        return result;
+                    };
+                }
+
+                // the child extends multiple parents
+                // 
+                // FIXME we need uniform behavior here
+                // will NOT erase child's prototype
+                // if (arguments.length > 2) {
+                    for (var i = 1, l = arguments.length; i < l; i++) {
+                        var parent = arguments[i];
+
+                        for (var propName in parent.prototype) {
+                            // inherit prototype methods
+                            if (parent.prototype[propName] instanceof Function) {
+
+                                if (child.prototype[propName]) {
+                                    child.prototype[propName] = superMethod(child.prototype[propName], parent, propName);
+                                }
+                                else {
+                                    child.prototype[propName] = extendPrototype(parent, propName);
+                                }
+                            }
+                            // inherit prototype properties
+                            else {
+                                child.prototype[propName] = parent.prototype[propName];
+                            }
+                        }
+                    }
+                // }
+                // the child extends a single parent
+                // 
+                // FIXME we need uniform behavior here
+                // will erase child's prototype
+                // else if (arguments.length > 1) {
+                //     Temp.prototype = arguments[1].prototype;
+                //     child.prototype = new Temp();
+                //     child.prototype.constructor = child;
+                //     Temp.prototype = null;
+                // }
+
+                return child;
+            }
+
+
         </script>
     </body>
 </html>
