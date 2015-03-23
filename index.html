@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>extend multiple</title>
+        <title>multiple.js</title>
 
         <style>
         </style>
     </head>
 
     <body>
-        <h1>Extend Multiple demo</h1>
+        <h1>Inherit from multiple classes</h1>
 
         <script>
             // TEST/DEBUG DATA 
@@ -20,20 +20,41 @@
                 this.hairColor = 'brown';
             }
 
+            // will be supered
             Mom.prototype.feed = function(food) {
-                return 'Whatta delicious ' + food;
+                return 'Whatta delicious Mom\'s ' + food;
             };
+
 
             function Dad() {
                 this.hairColor = 'blonde';
             }
 
+            // will be supered
             Dad.prototype.ride = function(ride) {
                 return 'Riding dad\'s sexy ' + ride;
             };
 
+            // will be supered
             Dad.prototype.fly = function(ride) {
                 return 'Flying dad\'s sexy ' + ride;
+            };
+
+            Dad.prototype.feed = function(food) {
+                return 'Whatta delicious Dad\'s ' + food;
+            };
+
+
+            function Grandpa() {
+                this.hairColor = 'grey';
+            }
+
+            Grandpa.prototype.ride = function(ride) {
+                return 'Riding Grandpa\'s old ' + ride;
+            };
+
+            Grandpa.prototype.play = function(game) {
+                return 'Playing Grandpa\'s old ' + game;
             };
 
 
@@ -41,6 +62,7 @@
                 // properties with the same name are overridden by subsequent calls
                 Mom.apply(this, arguments);
                 Dad.apply(this, arguments);
+                Grandpa.apply(this, arguments);
             }
 
             Child.prototype.ride = function(ride) {
@@ -51,6 +73,11 @@
             Child.prototype.fly = function(ride) {
                 console.log(this._super('jet'));
                 return 'Flying my OWN sexy ' + ride;
+            };
+
+            Child.prototype.feed = function(food) {
+                console.log(this._super('apple'));
+                return 'My own delicious ' + food;
             };
 
 
@@ -65,6 +92,16 @@
              * @return {object}       return child object that extends provided parent classes
              */
             function extend(child) {
+                if (!child) {
+                    throw new ReferenceError('No child class provided.');
+                } else if ( !(child instanceof Function) ) {
+                    throw new TypeError('Provided child is not a class.');
+                } else if (arguments.lentgh < 2) {
+                    throw new TypeError('Nothing to inherit.');
+                }
+
+                var inherited = {};
+
                 function Temp() {}
 
                 // creates a closure for parent's prototype method
@@ -79,7 +116,7 @@
                 function superMethod(childMethod, parent, methodName) {
 
                     return function() {
-                        // create a reference to super method during runtime
+                        // create a reference to super method ONLY during runtime
                         this._super = parent.prototype[methodName];
                         // run the child method to get the results
                         // the child method has access to super method now
@@ -92,42 +129,34 @@
                     };
                 }
 
-                // the child extends multiple parents
-                // 
-                // FIXME we need uniform behavior here
-                // will NOT erase child's prototype
-                // if (arguments.length > 2) {
-                    for (var i = 1, l = arguments.length; i < l; i++) {
-                        var parent = arguments[i];
+                for (var i = 1, l = arguments.length; i < l; i++) {
+                    var parent = arguments[i];
 
-                        for (var propName in parent.prototype) {
-                            // inherit prototype methods
-                            if (parent.prototype[propName] instanceof Function) {
+                    for (var propName in parent.prototype) {
+                        // inherit prototype methods
+                        if (parent.prototype[propName] instanceof Function) {
 
-                                if (child.prototype[propName]) {
-                                    child.prototype[propName] = superMethod(child.prototype[propName], parent, propName);
-                                }
-                                else {
-                                    child.prototype[propName] = extendPrototype(parent, propName);
-                                }
+                            if (child.prototype[propName] &&
+                                !inherited[propName]) {
+                                child.prototype[propName] = superMethod(child.prototype[propName], parent, propName);
+                                // for multiple inheritance, methods are copied from left to right,
+                                // once a method is copied and a super method is created we don't want to overwrite it
+                                // there can be only one super method
+                                inherited[propName] = true;
                             }
-                            // inherit prototype properties
-                            else {
-                                child.prototype[propName] = parent.prototype[propName];
+                            else if (!inherited[propName]) {
+                                child.prototype[propName] = extendPrototype(parent, propName);
                             }
+
+
+                        }
+                        // inherit prototype property
+                        // only if child object doesn't have it
+                        else if (!child.prototype[propName]) {
+                            child.prototype[propName] = parent.prototype[propName];
                         }
                     }
-                // }
-                // the child extends a single parent
-                // 
-                // FIXME we need uniform behavior here
-                // will erase child's prototype
-                // else if (arguments.length > 1) {
-                //     Temp.prototype = arguments[1].prototype;
-                //     child.prototype = new Temp();
-                //     child.prototype.constructor = child;
-                //     Temp.prototype = null;
-                // }
+                }
 
                 return child;
             }
